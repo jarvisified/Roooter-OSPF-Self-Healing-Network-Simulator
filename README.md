@@ -1,10 +1,10 @@
-# Roooter: OSPF Self-Healing Network Simulator 🚀
+<img width="2878" height="1650" alt="image" src="https://github.com/user-attachments/assets/611fa524-a909-44b5-b141-69156cdb1776" /># Roooter: OSPF Self-Healing Network Simulator 🚀
 
 **Roooter** is a high-performance, fault-tolerant network routing daemon inspired by enterprise Cisco SD-WAN architecture. It transforms a standard graph-theory pathfinder into a dynamic, event-driven simulation engine.
 
 This project showcases advanced systems engineering patterns, including multi-threaded C++ execution, raw byte-level Inter-Process Communication (IPC), and real-time telemetry extraction.
 
-*(Include a screenshot of your dashboard here)*
+<img width="2877" height="1648" alt="image" src="https://github.com/user-attachments/assets/7f28802c-e941-459b-94b5-078bbd04f387" />
 
 ## 🧠 Core Architecture & Tech Stack
 
@@ -25,6 +25,7 @@ This project is built across three distinct architectural layers:
 ## ⚙️ Key Features
 
 * **Dynamic Self-Healing:** The background thread artificially sabotages cables; the engine detects this and reroutes traffic automatically in milliseconds.
+* **Multi-Metric QoS (The Spotify Use-Case):** Built to support dynamic algorithm swapping (e.g., using a Min-Heap for absolute lowest latency VoIP routing, and flipping to a Max-Heap to maximize bottleneck bandwidth for massive Spotify offline playlist downloads).
 * **Sliding Window Sync Hunter:** Python uses a 1-byte sliding window to hunt for the packet header, ensuring crash-proof telemetry ingestion.
 * **Barnes-Hut Physics Visualization:** Nodes untangle themselves dynamically using a physics engine, locking automatically to preserve 0% CPU footprint while waiting for routing updates.
 * **Continuous "Heartbeat" Charting:** Smooth-scrolling Chart.js integration mimics AWS CloudWatch/Datadog interfaces.
@@ -43,3 +44,29 @@ This project is built across three distinct architectural layers:
    ```bash
    git clone [https://github.com/yourusername/roooter-network-sim.git](https://github.com/yourusername/roooter-network-sim.git)
    cd roooter-network-sim
+   ```
+
+2. **Compile the C++ Engine:**
+   Run the following command to compile the C++ code into an executable with Level 3 extreme hardware optimizations:
+   ```bash
+   g++ -O3 networkdefining_phase3.cpp -o a.exe
+   ```
+   *(Note: For Linux/Mac, omit `.exe` and update `api_dashboard.py` line 129 to point to `./a.out`)*
+
+3. **Start the Python Telemetry Server:**
+   Boot up the FastAPI server which will automatically manage the C++ daemon:
+   ```bash
+   python -m uvicorn api_dashboard:app --reload
+   ```
+
+4. **Launch the Dashboard:**
+   Simply double-click `index.html` to open it in your browser (Chrome/Edge/Firefox). No local web server is strictly required for the HTML file, but you can also host it via Live Server.
+
+5. **Simulate!**
+   Click **Deploy** on the dashboard. Watch the C++ engine randomly break links and heal the network while the telemetry graphs update in real-time.
+
+## 🐛 Known Windows Security Workarounds
+
+If you encounter `OSError: [WinError 4551]`, Windows Defender/AppLocker is blocking the newly compiled `a.exe`. To fix:
+1. Right-click `a.exe` in File Explorer -> Properties.
+2. Check **Unblock** at the bottom of the General tab and click Apply.
