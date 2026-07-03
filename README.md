@@ -42,7 +42,7 @@ This project is built across three distinct architectural layers:
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/yourusername/roooter-network-sim.git](https://github.com/yourusername/roooter-network-sim.git)
+   git clone [https://github.com/jarvisified/Roooter-OSPF-Self-Healing-Network-Simulator.git](https://github.com/jarvisified/Roooter-OSPF-Self-Healing-Network-Simulator.git)
    cd roooter-network-sim
    ```
 
