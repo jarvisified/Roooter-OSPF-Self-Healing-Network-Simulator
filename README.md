@@ -1,4 +1,4 @@
-<img width="2878" height="1650" alt="image" src="https://github.com/user-attachments/assets/611fa524-a909-44b5-b141-69156cdb1776" /># Roooter: OSPF Self-Healing Network Simulator 🚀
+# Roooter: OSPF Self-Healing Network Simulator 🚀
 
 **Roooter** is a high-performance, fault-tolerant network routing daemon inspired by enterprise Cisco SD-WAN architecture. It transforms a standard graph-theory pathfinder into a dynamic, event-driven simulation engine.
 
