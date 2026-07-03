@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roooter</title>
+    <!-- Tailwind CSS for minimalist UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vis.js for Network Topology -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <!-- Chart.js for Live Telemetry -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Clean canvas reset */
+        #network-canvas {
+            height: 100%;
+            width: 100%;
+            outline: none;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800 h-screen w-screen overflow-hidden flex flex-col p-4 md:p-6 gap-4 md:gap-6">
+
+    <!-- Header & Project Overview -->
+    <header class="flex justify-between items-start pb-4 border-b border-gray-200">
+        <div class="flex-1 pr-4">
+            <h1 class="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Roooter</h1>
+            <p class="text-xs md:text-sm text-gray-600 font-medium mt-1">Dynamic Topology & Multi-Threaded OSPF Engine
+            </p>
+
+            <!-- Project Info Section -->
+            <div class="mt-2.5 p-3 bg-white rounded border border-gray-200 shadow-sm">
+                <p class="text-[11px] text-gray-500 leading-relaxed">
+                    <strong class="text-gray-700">Project Goal:</strong> Build a high-performance, fault-tolerant
+                    network routing daemon.
+                    <strong class="text-gray-700 ml-2">Achievement:</strong> Successfully implemented a multi-threaded
+                    OSPF engine in C++ with real-time Dijkstra path recalculation, dynamic link failures, and a strict
+                    byte-level binary serialization protocol (IPC) to stream metrics to this observability frontend.
+                </p>
+            </div>
+        </div>
+        <div id="connection-status"
+            class="px-4 py-1.5 rounded-full bg-rose-100 text-rose-700 text-xs font-mono font-bold animate-pulse shadow-sm border border-rose-200 mt-1 whitespace-nowrap">
+            CONNECTING...
+        </div>
+    </header>
+
+    <!-- Main Dashboard Grid -->
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-0">
+
+        <!-- Column 1: Network Editor -->
+        <div
+            class="lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col p-5 h-full min-h-0">
+            <div class="mb-4 flex items-center gap-1.5 relative group w-max cursor-help z-50">
+                <h2 class="text-xs font-bold text-gray-700 uppercase tracking-widest">Network Editor</h2>
+                <svg class="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <div
+                    class="absolute left-0 top-full mt-2 w-64 p-3 bg-gray-900 text-gray-100 text-[11px] leading-relaxed rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all pointer-events-none">
+                    Simulates a network admin console. Add/remove physical links and configure routing endpoints to test
+                    the C++ daemon's dynamic self-healing capabilities.
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-4 flex-1 min-h-0">
+                <!-- Routing Config -->
+                <div class="flex gap-2">
+                    <div class="flex-1">
+                        <label class="text-[10px] uppercase text-gray-500 font-bold">Source Node</label>
+                        <input type="number" id="src-node"
+                            class="w-full text-sm p-2 bg-gray-50 border border-gray-200 rounded focus:outline-none focus:border-emerald-500 transition">
+                    </div>
+                    <div class="flex-1">
+                        <label class="text-[10px] uppercase text-gray-500 font-bold">Destination Node</label>
+                        <input type="number" id="dst-node"
+                            class="w-full text-sm p-2 bg-gray-50 border border-gray-200 rounded focus:outline-none focus:border-emerald-500 transition">
+                    </div>
+                </div>
+
+                <hr class="border-gray-100">
+
+                <!-- Add Link -->
+                <div>
+                    <label class="text-[10px] uppercase text-gray-500 font-bold mb-1 block">Add Network Link</label>
+                    <div class="flex gap-2 mb-2">
+                        <input type="number" id="new-u" placeholder="From (e.g. 6)"
+                            class="w-1/3 text-sm p-2 bg-gray-50 border border-gray-200 rounded focus:outline-none focus:border-emerald-500 transition">
+                        <input type="number" id="new-v" placeholder="To (e.g. 7)"
+                            class="w-1/3 text-sm p-2 bg-gray-50 border border-gray-200 rounded focus:outline-none focus:border-emerald-500 transition">
+                        <input type="number" id="new-cost" placeholder="Cost"
+                            class="w-1/3 text-sm p-2 bg-gray-50 border border-gray-200 rounded focus:outline-none focus:border-emerald-500 transition">
+                    </div>
+                    <button onclick="addEdge()"
+                        class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-1.5 rounded text-sm transition shadow-sm border border-gray-200">
+                        + Add Link
+                    </button>
+                </div>
+
+                <hr class="border-gray-100">
+
+                <!-- Edge List -->
+                <div class="flex-1 flex flex-col min-h-0">
+                    <label class="text-[10px] uppercase text-gray-500 font-bold flex justify-between mb-2">
+                        <span>Active Links</span>
+                        <span id="edge-count" class="text-emerald-600 bg-emerald-50 px-2 rounded-full">0</span>
+                    </label>
+                    <div id="edge-list" class="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                        <!-- Dynamic Edges Rendered Here -->
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-2">
+                    <button onclick="deployNetwork()"
+                        class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded shadow-sm transition flex items-center justify-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                        Deploy
+                    </button>
+                    <button onclick="stopAndReset()"
+                        class="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 rounded shadow-sm transition flex items-center justify-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"></path>
+                        </svg>
+                        Stop Engine
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Column 2 & 3: Topology Map -->
+        <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col p-5 relative">
+            <div class="mb-2 z-10 flex items-center gap-1.5 relative group w-max cursor-help">
+                <h2 class="text-xs font-bold text-gray-700 uppercase tracking-widest">Live Topology</h2>
+                <svg class="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <div
+                    class="absolute left-0 top-full mt-2 w-72 p-3 bg-gray-900 text-gray-100 text-[11px] leading-relaxed rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all pointer-events-none">
+                    Visual representation of the network graph. Active routes are highlighted in green. The physics
+                    engine automatically locks after initial placement to maintain high-FPS telemetry drawing.
+                </div>
+            </div>
+            <div id="network-canvas" class="flex-1 bg-gray-50/50 rounded-lg border border-gray-100 mt-2"></div>
+        </div>
+
+        <!-- Column 4: Metrics & History -->
+        <div class="lg:col-span-1 flex flex-col gap-5 min-h-0">
+            <!-- KPI Grid -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-1.5 relative group w-max cursor-help mb-1 z-40">
+                            <p class="text-[10px] text-gray-700 font-bold uppercase tracking-widest">Throughput</p>
+                            <svg class="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-500 transition-colors"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <div
+                                class="absolute left-0 top-full mt-2 w-48 p-2.5 bg-gray-900 text-gray-100 text-[10px] leading-relaxed rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all pointer-events-none">
+                                Estimated data capacity, inversely proportional to routing cost. Critical for bulk
+                                transfers like video streaming.
+                            </div>
+                        </div>
+                        <p id="kpi-throughput"
+                            class="text-2xl font-mono font-bold text-emerald-600 transition-colors duration-300">0 <span
+                                class="text-xs font-sans text-gray-400">Mbps</span></p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-1.5 relative group w-max cursor-help mb-1 z-40">
+                            <p class="text-[10px] text-gray-700 font-bold uppercase tracking-widest">Drop Rate</p>
+                            <svg class="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-500 transition-colors"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <div
+                                class="absolute right-0 top-full mt-2 w-48 p-2.5 bg-gray-900 text-gray-100 text-[10px] leading-relaxed rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all pointer-events-none">
+                                Percentage of packets lost. Spikes to 100% when no valid path exists (complete network
+                                isolation).
+                            </div>
+                        </div>
+                        <p id="kpi-drop"
+                            class="text-2xl font-mono font-bold text-rose-600 transition-colors duration-300">0<span
+                                class="text-xs font-sans text-gray-400">%</span></p>
+                    </div>
+                </div>
+
+                <div class="col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                    <div class="flex justify-between items-center mb-1">
+                        <div class="flex items-center gap-1.5 relative group w-max cursor-help z-30">
+                            <p class="text-[10px] text-gray-700 font-bold uppercase tracking-widest">Convergence Time
+                            </p>
+                            <svg class="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-500 transition-colors"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <div
+                                class="absolute left-0 top-full mt-2 w-72 p-2.5 bg-gray-900 text-gray-100 text-[10px] leading-relaxed rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all pointer-events-none">
+                                The exact time (in ms) it took the C++ engine to detect a link failure and recalculate
+                                the optimal path. Essential metric for High-Frequency Trading (HFT) and VoIP stability.
+                            </div>
+                        </div>
+                        <p id="kpi-convergence" class="text-xl font-mono font-bold text-blue-600">0 <span
+                                class="text-xs font-sans text-gray-400">ms</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Telemetry Graph -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex-1 flex flex-col min-h-0">
+                <div class="mb-2 flex items-center gap-1.5 relative group w-max cursor-help z-20">
+                    <h2 class="text-xs font-bold text-gray-700 uppercase tracking-widest">Throughput History</h2>
+                    <svg class="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <div
+                        class="absolute right-0 bottom-full mb-2 w-72 p-3 bg-gray-900 text-gray-100 text-[11px] leading-relaxed rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all pointer-events-none">
+                        Live time-series graph tracking bandwidth capacity. Throughput is estimated data capacity,
+                        inversely proportional to the routing cost. Engineers use this history to spot degradation
+                        trends and identify sub-optimal backup routes during failures.
+                    </div>
+                </div>
+                <div class="flex-1 relative w-full h-full mt-2">
+                    <canvas id="telemetryChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Path History Log -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-48 flex flex-col">
+                <div class="mb-3 flex items-center gap-1.5 relative group w-max cursor-help z-10">
+                    <h2 class="text-xs font-bold text-gray-700 uppercase tracking-widest">Routing Events</h2>
+                    <svg class="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <div
+                        class="absolute right-0 bottom-full mb-2 w-72 p-3 bg-gray-900 text-gray-100 text-[11px] leading-relaxed rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all pointer-events-none">
+                        Audit log of all path changes. Routes change dynamically because the background chaos simulator
+                        injects artificial link failures (cost = infinity), forcing the OSPF daemon to automatically
+                        recalculate the next optimal path to maintain connectivity.
+                    </div>
+                </div>
+                <div id="path-log"
+                    class="flex-1 overflow-y-auto font-mono text-[10px] space-y-2 pr-1 custom-scrollbar border-t border-gray-100 pt-2">
+                    <!-- Logs injected here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // ==========================================
+        // 1. DYNAMIC NETWORK STATE MANAGEMENT
+        // ==========================================
+        let currentNetwork = {
+            source: 0,
+            destination: 19,
+            edges: [
+                // === HIGHWAY 1: Fiber Optic (Fastest / Cost ~10 / Throughput ~1000 Mbps) ===
+                { u: 0, v: 1, cost: 2 }, { u: 1, v: 2, cost: 2 }, { u: 2, v: 3, cost: 2 }, { u: 3, v: 18, cost: 2 },
+
+                // === HIGHWAY 2: Copper (Medium / Cost ~26 / Throughput ~384 Mbps) ===
+                { u: 0, v: 4, cost: 6 }, { u: 4, v: 5, cost: 6 }, { u: 5, v: 6, cost: 6 }, { u: 6, v: 18, cost: 6 },
+
+                // === HIGHWAY 3: 5G Microwave (Slow / Cost ~62 / Throughput ~161 Mbps) ===
+                { u: 0, v: 7, cost: 15 }, { u: 7, v: 8, cost: 15 }, { u: 8, v: 9, cost: 15 }, { u: 9, v: 18, cost: 15 },
+
+                // === HIGHWAY 4: Satellite (Very Slow / Cost ~172 / Throughput ~58 Mbps) ===
+                { u: 0, v: 10, cost: 40 }, { u: 10, v: 11, cost: 40 }, { u: 11, v: 12, cost: 40 }, { u: 12, v: 13, cost: 40 }, { u: 13, v: 18, cost: 10 },
+
+                // === INTERCONNECTS (Allows routes to dynamically jump down to a slower tier if a link breaks) ===
+                { u: 1, v: 4, cost: 10 }, { u: 2, v: 5, cost: 10 }, { u: 5, v: 8, cost: 15 }, { u: 9, v: 12, cost: 20 },
+
+                // === THE DECOY HUB & DEAD ENDS ===
+                // Node 14 is highly connected but ultimately leads nowhere useful.
+                { u: 3, v: 14, cost: 5 }, { u: 14, v: 15, cost: 5 }, { u: 14, v: 16, cost: 5 }, { u: 14, v: 17, cost: 5 }, { u: 15, v: 16, cost: 5 },
+
+                // === THE CHOKE POINT (Single Point of Failure) ===
+                // This single cable connects the entire network to the destination (Router 19).
+                // If the C++ simulator breaks this exact cable, the entire network will go offline (DESTINATION UNREACHABLE).
+                { u: 18, v: 19, cost: 2 }
+            ]
+        };
+
+        function renderEditor() {
+            document.getElementById('src-node').value = currentNetwork.source;
+            document.getElementById('dst-node').value = currentNetwork.destination;
+            document.getElementById('edge-count').innerText = currentNetwork.edges.length;
+
+            const list = document.getElementById('edge-list');
+            list.innerHTML = '';
+
+            currentNetwork.edges.forEach((edge, idx) => {
+                const div = document.createElement('div');
+                div.className = "flex justify-between items-center text-xs bg-gray-50 px-3 py-2 rounded border border-gray-100 hover:border-gray-300 transition shadow-sm";
+                div.innerHTML = `
+                    <div class="flex gap-3">
+                        <span class="font-mono text-gray-500">R${edge.u} <span class="text-gray-300">↔</span> R${edge.v}</span>
+                        <span class="text-blue-600 font-semibold bg-blue-50 px-1.5 rounded">Cost: ${edge.cost}</span>
+                    </div>
+                    <button onclick="removeEdge(${idx})" class="text-gray-400 hover:text-rose-600 font-bold text-sm leading-none transition">&times;</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function addEdge() {
+            const u = parseInt(document.getElementById('new-u').value);
+            const v = parseInt(document.getElementById('new-v').value);
+            const cost = parseInt(document.getElementById('new-cost').value);
+
+            if (!isNaN(u) && !isNaN(v) && !isNaN(cost)) {
+                currentNetwork.edges.push({ u, v, cost });
+                document.getElementById('new-u').value = '';
+                document.getElementById('new-v').value = '';
+                document.getElementById('new-cost').value = '';
+                renderEditor();
+            } else {
+                alert("Please enter valid numbers for Router IDs and Cost.");
+            }
+        }
+
+        function removeEdge(idx) {
+            currentNetwork.edges.splice(idx, 1);
+            renderEditor();
+        }
+
+        // ==========================================
+        // 2. VIS.JS & CHART.JS INITIALIZATION
+        // ==========================================
+        const nodes = new vis.DataSet([]);
+        const edges = new vis.DataSet([]);
+        const network = new vis.Network(
+            document.getElementById('network-canvas'),
+            { nodes: nodes, edges: edges },
+            {
+                nodes: {
+                    shape: 'dot', size: 16, font: { color: '#1f2937', size: 14, face: 'Inter' },
+                    borderWidth: 2
+                },
+                edges: { font: { color: '#64748b', strokeWidth: 0, size: 12, face: 'Inter' }, width: 2 },
+                physics: { stabilization: true, barnesHut: { springLength: 150 } }
+            }
+        );
+
+        // LOCK PHYSICS AFTER LOAD: Ensures 60 FPS drawing when routing changes instantly
+        network.on("stabilizationIterationsDone", function () {
+            network.setOptions({ physics: false });
+        });
+
+        const ctx = document.getElementById('telemetryChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: [], datasets: [{ data: [], borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderWidth: 2, fill: true, tension: 0.2, pointRadius: 0 }] },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false,
+                scales: { x: { display: false }, y: { min: 0, suggestedMax: 700, grid: { color: '#f1f5f9' }, ticks: { color: '#64748b', font: { size: 10 } }, border: { display: false } } },
+                plugins: { legend: { display: false }, tooltip: { enabled: false } }
+            }
+        });
+
+        // ==========================================
+        // 3. WEBSOCKET INTEGRATION & HEARTBEAT
+        // ==========================================
+        let ws;
+        let lastPathString = "";
+        let isManualStop = false;
+        let latestThroughput = 0;
+        let chartHeartbeat = null;
+
+        function connectWebSocket() {
+            try {
+                ws = new WebSocket("ws://127.0.0.1:8000/ws");
+                ws.onopen = function () {
+                    const status = document.getElementById("connection-status");
+                    status.textContent = "CONNECTED TO DAEMON";
+                    status.className = "px-4 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-mono font-bold shadow-sm border border-emerald-200 animate-none whitespace-nowrap";
+                    deployNetwork(); // Automatically deploy initial state
+
+                    // Start the Chart Heartbeat - Constantly pushes data to scroll the chart smoothly
+                    if (!chartHeartbeat) {
+                        chartHeartbeat = setInterval(() => {
+                            if (!isManualStop) {
+                                const timeLabel = new Date().toLocaleTimeString();
+                                chart.data.labels.push(timeLabel);
+                                chart.data.datasets[0].data.push(latestThroughput);
+                                if (chart.data.labels.length > 60) {
+                                    chart.data.labels.shift();
+                                    chart.data.datasets[0].data.shift();
+                                }
+                                chart.update();
+                            }
+                        }, 500); // 2 updates per second for dramatic fluctuation capture
+                    }
+                };
+                ws.onmessage = function (event) { updateDashboard(JSON.parse(event.data)); };
+                ws.onerror = function () {
+                    console.warn("WebSocket failed. Canvas Sandbox Mode active.");
+                    document.getElementById("connection-status").innerHTML = "UI DEMO MODE";
+                    document.getElementById("connection-status").className = "px-4 py-1.5 rounded-full bg-amber-50 text-amber-700 text-xs font-mono font-bold shadow-sm border border-amber-200 animate-none whitespace-nowrap";
+                };
+                ws.onclose = function () {
+                    if (!isManualStop) {
+                        document.getElementById("connection-status").textContent = "DISCONNECTED";
+                        document.getElementById("connection-status").className = "px-4 py-1.5 rounded-full bg-rose-100 text-rose-700 text-xs font-mono font-bold shadow-sm border border-rose-200 animate-none whitespace-nowrap";
+                    }
+                    isManualStop = false;
+                };
+            } catch (e) {
+                console.warn(e);
+            }
+        }
+
+        function stopAndReset() {
+            isManualStop = true;
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.close(); // Disconnecting kills the C++ Engine in Python automatically
+            }
+
+            // Reset variables
+            latestThroughput = 0;
+            lastPathString = "";
+
+            // Reset Charts & Logs
+            chart.data.labels = [];
+            chart.data.datasets[0].data = [];
+            chart.update();
+            document.getElementById("path-log").innerHTML = "";
+
+            // Reset KPIs
+            document.getElementById("kpi-throughput").innerHTML = `0 <span class="text-xs font-sans text-gray-400">Mbps</span>`;
+            document.getElementById("kpi-drop").innerHTML = `0<span class="text-xs font-sans text-gray-400">%</span>`;
+            document.getElementById("kpi-convergence").innerHTML = `0 <span class="text-xs font-sans text-gray-400">ms</span>`;
+
+            // Reset Map Colors
+            let updates = [];
+            edges.forEach(edge => {
+                updates.push({ id: edge.id, color: '#cbd5e1', width: 2, arrows: '', shadow: { enabled: false }, font: { color: '#64748b', strokeWidth: 0 } });
+            });
+            edges.update(updates);
+
+            const status = document.getElementById("connection-status");
+            status.textContent = "ENGINE STOPPED";
+            status.className = "px-4 py-1.5 rounded-full bg-gray-100 text-gray-700 text-xs font-mono font-bold shadow-sm border border-gray-300 animate-none whitespace-nowrap";
+        }
+
+        function deployNetwork() {
+            // Reconnect if stopped
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                connectWebSocket();
+                return; // connectWebSocket calls deployNetwork() automatically on open
+            }
+
+            // Wake up the physics engine for new deployment arrangement
+            network.setOptions({ physics: true });
+
+            // 1. Gather UI Inputs
+            currentNetwork.source = parseInt(document.getElementById('src-node').value);
+            currentNetwork.destination = parseInt(document.getElementById('dst-node').value);
+
+            // 2. Calculate dynamic max nodes
+            let maxNode = Math.max(currentNetwork.source, currentNetwork.destination);
+            currentNetwork.edges.forEach(e => { maxNode = Math.max(maxNode, e.u, e.v); });
+            const numNodes = maxNode + 1;
+
+            // 3. Rebuild Visual Graph
+            nodes.clear();
+            edges.clear();
+
+            let newNodes = [];
+            for (let i = 0; i < numNodes; i++) {
+                // Color Source green, Dest red, others white
+                let nodeColor = { background: '#ffffff', border: '#3b82f6' };
+                if (i === currentNetwork.source) nodeColor = { background: '#d1fae5', border: '#10b981' };
+                if (i === currentNetwork.destination) nodeColor = { background: '#ffe4e6', border: '#f43f5e' };
+
+                newNodes.push({ id: i, label: "R" + i, color: nodeColor });
+            }
+            nodes.add(newNodes);
+
+            let newEdges = [];
+            currentNetwork.edges.forEach((e, idx) => {
+                newEdges.push({ id: `${e.u}-${e.v}-${idx}`, from: e.u, to: e.v, label: String(e.cost), color: '#cbd5e1' });
+            });
+            edges.add(newEdges);
+
+            // 4. Reset Telemetry UI
+            document.getElementById("path-log").innerHTML = "";
+            chart.data.labels = [];
+            chart.data.datasets[0].data = [];
+            chart.update();
+            lastPathString = "";
+            latestThroughput = 0; // ensure it resets
+
+            // 5. Send to Python Backend
+            const payload = {
+                num_nodes: numNodes,
+                num_edges: currentNetwork.edges.length,
+                source: currentNetwork.source,
+                destination: currentNetwork.destination,
+                edges: currentNetwork.edges
+            };
+
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(payload));
+            }
+        }
+
+        // ==========================================
+        // 4. UI UPDATE LOGIC (RECEIVING TELEMETRY)
+        // ==========================================
+        function updateDashboard(data) {
+            if (data.type !== "telemetry_update") return;
+            const metrics = data.metrics;
+            const currentPath = data.path;
+
+            // 1. Update KPI Values & Chart Variable
+            latestThroughput = metrics.throughput_mbps; // Chart relies on this global variable now
+
+            document.getElementById("kpi-throughput").innerHTML = `${metrics.throughput_mbps} <span class="text-xs font-sans text-gray-400">Mbps</span>`;
+            document.getElementById("kpi-drop").innerHTML = `${metrics.drop_rate_percentage}<span class="text-xs font-sans text-gray-400">%</span>`;
+            document.getElementById("kpi-convergence").innerHTML = `${metrics.convergence_ms} <span class="text-xs font-sans text-gray-400">ms</span>`;
+
+            // 2. Color Status
+            const tpElement = document.getElementById("kpi-throughput");
+            const dropElement = document.getElementById("kpi-drop");
+            if (metrics.throughput_mbps == 0) {
+                tpElement.classList.replace("text-emerald-600", "text-rose-600");
+                dropElement.classList.replace("text-emerald-600", "text-rose-600");
+            } else {
+                tpElement.classList.replace("text-rose-600", "text-emerald-600");
+                dropElement.classList.replace("text-rose-600", "text-emerald-600");
+            }
+
+            // 3. Highlight Topology Graph dynamically (Minimal Clean Path)
+            let updates = [];
+            edges.forEach(edge => {
+                let isRoute = false;
+                for (let i = 0; i < currentPath.length - 1; i++) {
+                    if ((edge.from == currentPath[i] && edge.to == currentPath[i + 1]) ||
+                        (edge.to == currentPath[i] && edge.from == currentPath[i + 1])) {
+                        isRoute = true; break;
+                    }
+                }
+
+                updates.push({
+                    id: edge.id,
+                    color: isRoute ? '#10b981' : '#cbd5e1', // Green for active, gray for inactive
+                    width: isRoute ? 4 : 2,                 // Clean, standard width
+                    arrows: '',                             // Removed arrows entirely
+                    shadow: { enabled: false },             // Removed neon shadow glow
+                    font: { color: isRoute ? '#059669' : '#94a3b8', strokeWidth: 0 }
+                });
+            });
+            edges.update(updates);
+
+            // 4. Path Logging
+            const newPathStr = currentPath.length > 0 ? currentPath.map(p => `R${p}`).join(" → ") : "DESTINATION UNREACHABLE";
+            const timeLabel = new Date().toLocaleTimeString();
+
+            if (newPathStr !== lastPathString) {
+                const logEl = document.getElementById("path-log");
+                const entry = document.createElement("div");
+                const timeSpan = `<span class="text-gray-400">[${timeLabel}]</span>`;
+
+                if (data.total_cost === -1) {
+                    entry.innerHTML = `${timeSpan} <span class="text-rose-600 font-semibold bg-rose-50 px-1 rounded block mt-1">${newPathStr}</span>`;
+                } else {
+                    entry.innerHTML = `${timeSpan} <span class="text-gray-700 font-semibold">${newPathStr}</span> <span class="text-blue-600 bg-blue-50 px-1 rounded ml-1">Cost: ${data.total_cost}</span>`;
+                }
+
+                logEl.prepend(entry);
+                lastPathString = newPathStr;
+            }
+        }
+
+        // Initialize Editor UI & Connect
+        renderEditor();
+        connectWebSocket();
+
+    </script>
+</body>
+
+</html>
