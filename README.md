@@ -4,7 +4,7 @@
 
 This project showcases advanced systems engineering patterns, including multi-threaded C++ execution, raw byte-level Inter-Process Communication (IPC), and real-time telemetry extraction.
 
-<img width="2877" height="1648" alt="image" src="https://github.com/user-attachments/assets/7f28802c-e941-459b-94b5-078bbd04f387" />
+<img width="2878" height="1646" alt="image" src="https://github.com/user-attachments/assets/ce85ecd0-cf12-4e47-9698-6ccee74d2648" />
 
 ## 🧠 Core Architecture & Tech Stack
 
